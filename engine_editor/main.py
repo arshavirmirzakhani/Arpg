@@ -1,0 +1,134 @@
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+import sys
+import os
+import toml
+
+from projecteditor import ProjectEditor
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Arpg Editor")
+        self.setWindowState(Qt.WindowState.WindowMaximized)
+
+        # Toolbar
+        self.toolbar = self.addToolBar("Toolbar")
+
+        self.open_project_action = QPushButton("Open", self)
+        self.open_project_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentOpen))
+        self.open_project_action.clicked.connect(self.open_project_directory_dialog)
+        self.toolbar.addWidget(self.open_project_action)
+
+        self.save_action = QPushButton("Save", self)
+        self.save_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSave))
+        self.save_action.clicked.connect(self.save_project)
+        self.toolbar.addWidget(self.save_action)
+
+        save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+        save_shortcut.activated.connect(self.save_project)
+
+        # Assets tree
+        self.model = QFileSystemModel()
+        self.model.setFilter(QDir.NoDotAndDotDot | QDir.AllEntries)
+        self.model.setRootPath("")
+
+        self.tree_view = QTreeView()
+        self.tree_view.setModel(self.model)
+        self.tree_view.setRootIndex(QModelIndex())
+        self.tree_view.clicked.connect(self.on_tree_item_clicked)
+
+        # Main content area as tab widget
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setTabsClosable(True)
+        self.tab_widget.tabCloseRequested.connect(self.close_tab)
+        self.setCentralWidget(self.tab_widget)
+
+        # Dock widget for assets
+        self.assets_dock_widget = QDockWidget("Assets", self)
+        self.assets_dock_widget.setAllowedAreas(Qt.AllDockWidgetAreas)
+        self.assets_dock_widget.setWidget(self.tree_view)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.assets_dock_widget)
+
+        self.current_project_path = ""
+
+    def open_project_directory_dialog(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Project Folder", "")
+        if not directory:
+            return
+
+        project_cfg_path = os.path.join(directory, "project.toml")
+
+        if os.path.isfile(project_cfg_path) and self.is_valid_project_config(project_cfg_path):
+            self.model.setRootPath(directory)
+            self.tree_view.setRootIndex(self.model.index(directory))
+            self.current_project_path = directory
+        else:
+            QMessageBox.warning(
+                self,
+                "Invalid Project",
+                "The selected folder does not contain a valid 'project.toml' file."
+            )
+            self.tree_view.setRootIndex(QModelIndex())
+
+    def is_valid_project_config(self, path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = toml.load(f)
+            return "name" in data and "version" in data
+        except Exception as e:
+            print(f"Failed to parse project.toml: {e}")
+            return False
+
+    def on_tree_item_clicked(self, index: QModelIndex):
+        file_path = self.model.filePath(index)
+        if os.path.basename(file_path) == "project.toml":
+            self.open_project_toml_tab(file_path)
+
+    def open_project_toml_tab(self, path):
+        # Check if the tab is already open
+        for i in range(self.tab_widget.count()):
+            if self.tab_widget.tabText(i) == "project.toml":
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        editor = ProjectEditor(path)
+        self.tab_widget.addTab(editor, "project.toml")
+        self.tab_widget.setCurrentWidget(editor)
+
+    def close_tab(self, index):
+        widget = self.tab_widget.widget(index)
+
+        if hasattr(widget, "is_modified") and widget.is_modified():
+            reply = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "This tab has unsaved changes. Do you want to save before closing?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.No:
+                return
+            elif reply == QMessageBox.Yes and hasattr(widget, "save"):
+                widget.save()
+
+        self.tab_widget.removeTab(index)
+
+    def save_project(self):
+        for i in range(self.tab_widget.count()):
+            widget = self.tab_widget.widget(i)
+            if hasattr(widget, "save") and callable(getattr(widget, "save")):
+                widget.save()
+            else:
+                pass
+        
+        QMessageBox.information(self, "Saved", "project saved successfully.")
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    app.exec()
