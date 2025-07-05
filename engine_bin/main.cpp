@@ -21,7 +21,15 @@ int main(void) {
 
 			zip_entry_noallocread(zip, (void*)buf, bufsize);
 
-			std::cout << buf << std::endl;
+			std::string_view string = (const char*)buf;
+			toml::table tbl		= toml::parse(string);
+
+			auto title    = tbl.get("window_title")->value<std::string>();
+			WINDOW_TITLE  = *title;
+			auto width    = tbl.get("window_width")->value<int>();
+			WINDOW_WIDTH  = *width;
+			auto height   = tbl.get("window_height")->value<int>();
+			WINDOW_HEIGHT = *height;
 		}
 		zip_entry_close(zip);
 	}
@@ -34,7 +42,7 @@ int main(void) {
 	// Initialize window
 	SetTraceLogLevel(LOG_WARNING);
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "test");
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE.c_str());
 	SetTargetFPS(60);
 
 	// Main game loop
@@ -70,7 +78,7 @@ int main(void) {
 		if (DEBUG_MODE) {
 			DrawText("Arpg Engine by Arshavir Mirzakhani - MIT Licenced", 5, 1, 20, PINK);
 
-			DrawText("Epsilon Engine version : ", 5, 21, 20, PINK);
+			DrawText("Arpg Engine version : ", 5, 21, 20, PINK);
 			DrawText(("FPS : " + std::to_string(GetFPS())).c_str(), 5, 41, 20, PINK);
 			DrawText(("FrameTime (DeltaTime) : " + std::to_string(GetFrameTime())).c_str(), 5, 61, 20, PINK);
 			DrawText(("Monitor refresh rate : " + std::to_string(GetMonitorRefreshRate(GetCurrentMonitor()))).c_str(), 5, 81, 20, PINK);

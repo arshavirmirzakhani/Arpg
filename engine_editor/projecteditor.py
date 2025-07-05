@@ -14,6 +14,8 @@ class ProjectEditor(QWidget):
 
         self.name_input = QLineEdit()
         self.version_input = QLineEdit()
+        
+        self.window_title_input = QLineEdit()
          
         self.window_width_input = QSpinBox()
         self.window_width_input.setMinimum(0)
@@ -27,11 +29,13 @@ class ProjectEditor(QWidget):
         # Connect signals
         self.name_input.textChanged.connect(self.mark_modified)
         self.version_input.textChanged.connect(self.mark_modified)
+        self.window_title_input.textChanged.connect(self.mark_modified)
         self.window_width_input.valueChanged.connect(self.mark_modified)
         self.window_height_input.valueChanged.connect(self.mark_modified)
 
         self.layout.addRow("Project Name:", self.name_input)
         self.layout.addRow("Version:", self.version_input)
+        self.layout.addRow("Window Title:",self.window_title_input)
         self.layout.addRow("Window Height:",self.window_height_input)
         self.layout.addRow("Window Width:",self.window_width_input)
 
@@ -45,16 +49,19 @@ class ProjectEditor(QWidget):
             # Block signals to avoid setting modified during initial load
             self.name_input.blockSignals(True)
             self.version_input.blockSignals(True)
+            self.window_title_input.blockSignals(True)
             self.window_width_input.blockSignals(True)
             self.window_height_input.blockSignals(True)
 
             self.name_input.setText(data.get("name", ""))
-            self.version_input.setText(data.get("version", ""))     
-            self.window_width_input.setValue(int(data.get("window_width", "")))
-            self.window_height_input.setValue(int(data.get("window_height", "")))
+            self.version_input.setText(data.get("version", "")) 
+            self.window_title_input.setText(data.get("window_title", "")) 
+            self.window_width_input.setValue(int(data.get("window_width", 0)))
+            self.window_height_input.setValue(int(data.get("window_height", 0)))
 
             self.name_input.blockSignals(False)
             self.version_input.blockSignals(False)
+            self.window_title_input.blockSignals(False)
             self.window_width_input.blockSignals(False)
             self.window_height_input.blockSignals(False)
 
@@ -74,9 +81,9 @@ class ProjectEditor(QWidget):
             data = {
                 "name": self.name_input.text(),
                 "version": self.version_input.text(),
+                "window_title": self.window_title_input.text(),
                 "window_width": self.window_width_input.value(),
                 "window_height": self.window_height_input.value()
-
             }
 
             with open(self.path, "w", encoding="utf-8") as f:
