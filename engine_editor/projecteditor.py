@@ -16,13 +16,26 @@ class ProjectEditor(QWidget):
 
         self.name_input = QLineEdit()
         self.version_input = QLineEdit()
+         
+        self.window_width_input = QSpinBox()
+        self.window_width_input.setMinimum(0)
+        self.window_width_input.setMaximum(2000)
+        
+        self.window_height_input = QSpinBox()
+        self.window_height_input.setMinimum(0)
+        self.window_height_input.setMaximum(2000)
+        
 
         # Connect signals
         self.name_input.textChanged.connect(self.mark_modified)
         self.version_input.textChanged.connect(self.mark_modified)
+        self.window_width_input.valueChanged.connect(self.mark_modified)
+        self.window_height_input.valueChanged.connect(self.mark_modified)
 
         self.layout.addRow("Project Name:", self.name_input)
         self.layout.addRow("Version:", self.version_input)
+        self.layout.addRow("Window Height:",self.window_height_input)
+        self.layout.addRow("Window Width:",self.window_width_input)
 
         self.load_from_file()
 
@@ -34,12 +47,18 @@ class ProjectEditor(QWidget):
             # Block signals to avoid setting modified during initial load
             self.name_input.blockSignals(True)
             self.version_input.blockSignals(True)
+            self.window_width_input.blockSignals(True)
+            self.window_height_input.blockSignals(True)
 
             self.name_input.setText(data.get("name", ""))
-            self.version_input.setText(data.get("version", ""))
+            self.version_input.setText(data.get("version", ""))     
+            self.window_width_input.setValue(int(data.get("window_width", "")))
+            self.window_height_input.setValue(int(data.get("window_height", "")))
 
             self.name_input.blockSignals(False)
             self.version_input.blockSignals(False)
+            self.window_width_input.blockSignals(False)
+            self.window_height_input.blockSignals(False)
 
             self.modified = False  # Reset after loading
 
