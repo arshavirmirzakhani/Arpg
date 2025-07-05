@@ -1,4 +1,5 @@
 #include <engine.h>
+#include <iostream>
 #include <raylib.h>
 #include <rlgl.h>
 #include <string>
@@ -8,6 +9,25 @@
 int main(void) {
 
 	// Load game data
+	unsigned char* buf;
+	size_t bufsize;
+
+	struct zip_t* zip = zip_open("data.arpg", 0, 'r');
+	{
+		zip_entry_open(zip, "project.toml");
+		{
+			bufsize = zip_entry_size(zip);
+			buf	= (unsigned char*)calloc(sizeof(unsigned char), bufsize);
+
+			zip_entry_noallocread(zip, (void*)buf, bufsize);
+
+			std::cout << buf << std::endl;
+		}
+		zip_entry_close(zip);
+	}
+	zip_close(zip);
+
+	free(buf);
 
 	// Initialize game
 
