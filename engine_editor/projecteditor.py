@@ -73,7 +73,10 @@ class ProjectEditor(QWidget):
         try:
             data = {
                 "name": self.name_input.text(),
-                "version": self.version_input.text()
+                "version": self.version_input.text(),
+                "window_width": self.window_width_input.value(),
+                "window_height": self.window_height_input.value()
+
             }
 
             with open(self.path, "w", encoding="utf-8") as f:
