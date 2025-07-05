@@ -1,9 +1,11 @@
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
+import toml
 import sys
 import os
-import toml
+import zipfile
+import glob
 
 from projecteditor import ProjectEditor
 
@@ -27,9 +29,15 @@ class MainWindow(QMainWindow):
         self.save_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSave))
         self.save_action.clicked.connect(self.save_project)
         self.toolbar.addWidget(self.save_action)
-
+        
         save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         save_shortcut.activated.connect(self.save_project)
+        
+        self.export_action = QPushButton("Export", self)
+        self.export_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSend))
+        self.export_action.clicked.connect(self.export_project)
+        self.toolbar.addWidget(self.export_action)
+
 
         # Assets tree
         self.model = QFileSystemModel()
@@ -60,6 +68,8 @@ class MainWindow(QMainWindow):
         if not directory:
             return
 
+        self.current_project_path = directory
+        
         project_cfg_path = os.path.join(directory, "project.toml")
 
         if os.path.isfile(project_cfg_path) and self.is_valid_project_config(project_cfg_path):
@@ -80,7 +90,6 @@ class MainWindow(QMainWindow):
                 data = toml.load(f)
             return "name" in data and "version" in data
         except Exception as e:
-            print(f"Failed to parse project.toml: {e}")
             return False
 
     def on_tree_item_clicked(self, index: QModelIndex):
@@ -125,6 +134,21 @@ class MainWindow(QMainWindow):
                 pass
         
         QMessageBox.information(self, "Saved", "project saved successfully.")
+
+    def export_project(self):
+        with zipfile.ZipFile(self.current_project_path + "/data.arpg","w") as zip:
+            zip.write(self.current_project_path + "/project.toml","project.toml")
+            
+            for file in glob.iglob(self.current_project_path + "/global/*.toml"):
+                zip.write(file,file[len(self.current_project_path):])
+
+            for file in glob.iglob(self.current_project_path + "/stages/*.toml"):
+                zip.write(file,file[len(self.current_project_path):])
+                
+            for file in glob.iglob(self.current_project_path + "/assets/*"):
+                zip.write(file,file[len(self.current_project_path):])
+        
+        QMessageBox.information(self, "Export", "project exported successfully.")
 
 
 if __name__ == "__main__":
