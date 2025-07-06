@@ -24,12 +24,8 @@ int main(void) {
 			std::string_view string = (const char*)buf;
 			toml::table tbl		= toml::parse(string);
 
-			auto title    = tbl.get("window_title")->value<std::string>();
-			WINDOW_TITLE  = *title;
-			auto width    = tbl.get("window_width")->value<int>();
-			WINDOW_WIDTH  = *width;
-			auto height   = tbl.get("window_height")->value<int>();
-			WINDOW_HEIGHT = *height;
+			auto title   = tbl.get("window_title")->value<std::string>();
+			WINDOW_TITLE = *title;
 		}
 		zip_entry_close(zip);
 	}
