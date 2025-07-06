@@ -1,8 +1,8 @@
 #pragma once
 #include "global.h"
 
-int WINDOW_WIDTH	 = 900;
-int WINDOW_HEIGHT	 = 600;
+int WINDOW_WIDTH	 = 1200;
+int WINDOW_HEIGHT	 = 900;
 std::string WINDOW_TITLE = "test game";
 
 bool DEBUG_MODE = false;
