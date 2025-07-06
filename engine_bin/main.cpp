@@ -39,6 +39,7 @@ int main(void) {
 	SetTraceLogLevel(LOG_WARNING);
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE.c_str());
+	InitAudioDevice();
 	SetTargetFPS(60);
 
 	// Main game loop
