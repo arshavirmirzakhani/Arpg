@@ -139,12 +139,19 @@ class MainWindow(QMainWindow):
         with zipfile.ZipFile(self.current_project_path + "/data.arpg","w") as zip:
             zip.write(self.current_project_path + "/project.toml","project.toml")
             
+            zip.writestr("global/","")
             for file in glob.iglob(self.current_project_path + "/global/*.toml"):
                 zip.write(file,file[len(self.current_project_path):])
 
+            zip.writestr("stages/","")
             for file in glob.iglob(self.current_project_path + "/stages/*.toml"):
                 zip.write(file,file[len(self.current_project_path):])
                 
+            zip.writestr("actors/","")
+            for file in glob.iglob(self.current_project_path + "/actors/*.toml"):
+                zip.write(file,file[len(self.current_project_path):])
+              
+            zip.writestr("assets/","")  
             for file in glob.iglob(self.current_project_path + "/assets/*"):
                 zip.write(file,file[len(self.current_project_path):])
         
