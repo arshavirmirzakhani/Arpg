@@ -8,7 +8,7 @@ import zipfile
 import glob
 
 from projecteditor import ProjectEditor
-
+from imageviewer import ImageViewer
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -94,8 +94,30 @@ class MainWindow(QMainWindow):
 
     def on_tree_item_clicked(self, index: QModelIndex):
         file_path = self.model.filePath(index)
+
+        if not os.path.isfile(file_path):
+            return  # Ignore directories
+
         if os.path.basename(file_path) == "project.toml":
             self.open_project_toml_tab(file_path)
+        elif (self.current_project_path + "/assets") in file_path and self.is_image_file(file_path):
+            self.open_image_tab(file_path)
+
+    def is_image_file(self, file_path):
+        image_extensions = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+        return file_path.lower().endswith(image_extensions)
+
+    def open_image_tab(self, path):
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            widget = self.tab_widget.widget(i)
+            if isinstance(widget, ImageViewer) and widget.image_path == path:
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        viewer = ImageViewer(path)
+        self.tab_widget.addTab(viewer, os.path.basename(path))
+        self.tab_widget.setCurrentWidget(viewer)
 
     def open_project_toml_tab(self, path):
         # Check if the tab is already open

@@ -2,9 +2,9 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 import toml
+from editorwidget import EditorWidget
 
-
-class ProjectEditor(QWidget):
+class ProjectEditor(QWidget,EditorWidget):
     def __init__(self, path, parent=None):
         super().__init__(parent)
         self.path = path
