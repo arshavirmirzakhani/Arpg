@@ -12,10 +12,10 @@ class SpriteSheet {
 		SpriteSheet() {}
 		~SpriteSheet() {}
 
-		std::string image;
+		Texture2D image;
 
 		int frame_width	 = TILE_SIZE;
 		int frame_height = TILE_SIZE;
 
-		std::unordered_map<std::string, std::vector<SpriteFrame>> animation_states;
+		std::unordered_map<std::string, std::vector<SpriteFrame>> states;
 };
