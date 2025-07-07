@@ -27,6 +27,7 @@ class ImageViewer(QWidget, EditorWidget):
         self.scene = QGraphicsScene()
         self.view.setScene(self.scene)
 
+        # Check if image exist
         self.pixmap = QPixmap(self.image_path)
         if self.pixmap.isNull():
             QMessageBox.critical(self, "Error", "Failed to load image.")
@@ -64,11 +65,7 @@ class ImageViewer(QWidget, EditorWidget):
         return self.modified
 
     def save(self):
-        try:
-            shutil.copy(self.image_path, self.image_path)
-            self.modified = False
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save image:\n{e}")
+        pass
 
     def wheelEvent(self, event: QWheelEvent):
         # Zoom in/out with mouse wheel
