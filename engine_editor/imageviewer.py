@@ -2,7 +2,20 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from editorwidget import EditorWidget
-import shutil
+
+
+# Custom QGraphicsView that emits a signal when the mouse moves
+class GraphicsView(QGraphicsView):
+    cursorMoved = Signal(QPointF)  # Emits scene position of cursor
+
+    def __init__(self):
+        super().__init__()
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        super().mouseMoveEvent(event)
+        scene_pos = self.mapToScene(event.pos())
+        self.cursorMoved.emit(scene_pos)
 
 
 class ImageViewer(QWidget, EditorWidget):
@@ -15,35 +28,46 @@ class ImageViewer(QWidget, EditorWidget):
         self._dragging = False
         self._drag_start_pos = None
 
+        self.setMouseTracking(True)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-
-        self.view = QGraphicsView()
-        self.view.setRenderHint(self.view.renderHints() & ~self.view.renderHints().SmoothPixmapTransform)
+        # Use the custom view
+        self.view = GraphicsView()
+        self.view.setRenderHint(QPainter.Antialiasing, False)
+        self.view.setRenderHint(QPainter.SmoothPixmapTransform, False)
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.view.setDragMode(QGraphicsView.ScrollHandDrag)
 
         self.scene = QGraphicsScene()
         self.view.setScene(self.scene)
 
-        # Check if image exist
+        # Connect the custom signal
+        self.view.cursorMoved.connect(self.update_coordinates)
+
+        # Check if image exists
         self.pixmap = QPixmap(self.image_path)
         if self.pixmap.isNull():
             QMessageBox.critical(self, "Error", "Failed to load image.")
             return
 
-        # Create checkerboard background item
+        # Checkerboard background
         self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(self.pixmap.width(), self.pixmap.height()))
-        self.checker_item.setZValue(-1)  # Ensure it's behind the image
+        self.checker_item.setZValue(-1)
         self.scene.addItem(self.checker_item)
 
-        # Add image on top
+        # Image item
         self.pixmap_item = QGraphicsPixmapItem(self.pixmap)
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
         self.scene.addItem(self.pixmap_item)
 
         layout.addWidget(self.view)
+
+        # Coordinate display
+        self.coord_label = QLabel("Coordinates: ")
+        layout.addWidget(self.coord_label)
+
         self.setLayout(layout)
 
     def generate_checkerboard_pixmap(self, width, height, tile_size=8):
@@ -61,6 +85,15 @@ class ImageViewer(QWidget, EditorWidget):
         painter.end()
         return pixmap
 
+    def update_coordinates(self, scene_pos: QPointF):
+        image_pos = self.pixmap_item.mapFromScene(scene_pos)
+        x, y = int(image_pos.x()), int(image_pos.y())
+
+        if 0 <= x < self.pixmap.width() and 0 <= y < self.pixmap.height():
+            self.coord_label.setText(f"Coordinates: ({x}, {y})")
+        else:
+            self.coord_label.setText("Coordinates: Out of bounds")
+
     def is_modified(self) -> bool:
         return self.modified
 
@@ -68,7 +101,6 @@ class ImageViewer(QWidget, EditorWidget):
         pass
 
     def wheelEvent(self, event: QWheelEvent):
-        # Zoom in/out with mouse wheel
         if event.angleDelta().y() > 0:
             self._zoom *= 1.25
         else:
