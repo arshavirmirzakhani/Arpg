@@ -7,7 +7,7 @@ int player_pos_y = 50;
 
 int player_speed = 5;
 
-const float DIAGONAL_SPEED_FACTOR = (float)0.8;
+std::string sprite_sheet_name;
 
 void process_player() {
 	DrawRectangle(player_pos_x, player_pos_y, 50, 50, RED);
