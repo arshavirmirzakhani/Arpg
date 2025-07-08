@@ -1,2 +1,3 @@
 PySide6==6.7.1
 toml==0.10.2
+qdarkstyle==3.2.3
