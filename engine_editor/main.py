@@ -1,6 +1,7 @@
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
+from sympy import im
 import toml
 import sys
 import os
@@ -9,6 +10,7 @@ import glob
 
 from projecteditor import ProjectEditor
 from imageviewer import ImageViewer
+from spritesheeteditor import SpritesheetEditor
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -115,7 +117,8 @@ class MainWindow(QMainWindow):
                 self.tab_widget.setCurrentIndex(i)
                 return
 
-        viewer = ImageViewer(path)
+        #viewer = ImageViewer(path)
+        viewer = SpritesheetEditor(path)
         self.tab_widget.addTab(viewer, os.path.basename(path))
         self.tab_widget.setCurrentWidget(viewer)
 

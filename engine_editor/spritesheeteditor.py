@@ -4,7 +4,32 @@ from PySide6.QtWidgets import *
 from editorwidget import EditorWidget, GraphicsView
 
 
-class ImageViewer(QWidget, EditorWidget):
+class MovableRect(QGraphicsRectItem):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFlag(QGraphicsItem.ItemIsMovable, True)
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
+        self.setZValue(10)
+        self.callback = None
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.ItemPositionChange:
+            snapped_x = round(value.x())
+            snapped_y = round(value.y())
+            snapped_pos = QPointF(snapped_x, snapped_y)
+
+            if self.callback:
+                self.callback(snapped_pos)
+
+            return snapped_pos  
+        return super().itemChange(change, value)
+
+    def set_position_callback(self, callback):
+        self.callback = callback
+
+
+class SpritesheetEditor(QWidget, EditorWidget):
     def __init__(self, image_path):
         super().__init__()
         self.image_path = image_path
@@ -16,10 +41,9 @@ class ImageViewer(QWidget, EditorWidget):
 
         self.setMouseTracking(True)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        main_layout = QHBoxLayout(self)
+        self.setLayout(main_layout)
 
-        # Use the custom view
         self.view = GraphicsView()
         self.view.setRenderHint(QPainter.Antialiasing, False)
         self.view.setRenderHint(QPainter.SmoothPixmapTransform, False)
@@ -28,7 +52,6 @@ class ImageViewer(QWidget, EditorWidget):
 
         self.scene = QGraphicsScene()
         self.view.setScene(self.scene)
-
         self.view.cursorMoved.connect(self.update_coordinates)
 
         self.pixmap = QPixmap(self.image_path)
@@ -36,20 +59,51 @@ class ImageViewer(QWidget, EditorWidget):
             QMessageBox.critical(self, "Error", "Failed to load image.")
             return
 
-        self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(self.pixmap.width(), self.pixmap.height()))
-        self.checker_item.setZValue(-1)
+        self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(
+            self.pixmap.width(), self.pixmap.height()))
+        self.checker_item.setZValue(-2)
         self.scene.addItem(self.checker_item)
 
         self.pixmap_item = QGraphicsPixmapItem(self.pixmap)
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
+        self.pixmap_item.setZValue(-1)
         self.scene.addItem(self.pixmap_item)
 
-        layout.addWidget(self.view)
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self.view)
 
         self.coord_label = QLabel("Mouse: ")
-        layout.addWidget(self.coord_label)
+        left_layout.addWidget(self.coord_label)
 
-        self.setLayout(layout)
+        left_widget = QWidget()
+        left_widget.setLayout(left_layout)
+        main_layout.addWidget(left_widget, stretch=1)
+
+        self.tile_width_spin = QSpinBox()
+        self.tile_width_spin.setRange(1, 1024)
+        self.tile_width_spin.setValue(16)
+        self.tile_width_spin.valueChanged.connect(self.update_selection_rect)
+
+        self.tile_height_spin = QSpinBox()
+        self.tile_height_spin.setRange(1, 1024)
+        self.tile_height_spin.setValue(16)
+        self.tile_height_spin.valueChanged.connect(self.update_selection_rect)
+
+        right_panel = QVBoxLayout()
+        right_panel.addWidget(QLabel("Sprite Width:"))
+        right_panel.addWidget(self.tile_width_spin)
+        right_panel.addWidget(QLabel("Sprite Height:"))
+        right_panel.addWidget(self.tile_height_spin)
+        right_panel.addStretch()
+
+        main_layout.addLayout(right_panel)
+
+        self.selection_rect = MovableRect()
+        self.selection_rect.setPen(QPen(Qt.red, 0))
+        self.selection_rect.setBrush(QColor(255, 0, 0, 50))
+        self.selection_rect.set_position_callback(self.on_rect_moved)
+        self.scene.addItem(self.selection_rect)
+        self.update_selection_rect()
 
     def generate_checkerboard_pixmap(self, width, height, tile_size=8):
         pixmap = QPixmap(width, height)
@@ -66,12 +120,20 @@ class ImageViewer(QWidget, EditorWidget):
         painter.end()
         return pixmap
 
+    def update_selection_rect(self):
+        w = self.tile_width_spin.value()
+        h = self.tile_height_spin.value()
+        self.selection_rect.setRect(0, 0, w, h)
+
+    def on_rect_moved(self, pos: QPointF):
+        x, y = int(pos.x()), int(pos.y())
+        self.coord_label.setText(f"Selection Rect Position: ({x}, {y})")
+
     def update_coordinates(self, scene_pos: QPointF):
         image_pos = self.pixmap_item.mapFromScene(scene_pos)
         x, y = int(image_pos.x()), int(image_pos.y())
-
         if 0 <= x < self.pixmap.width() and 0 <= y < self.pixmap.height():
-            self.coord_label.setText(f"Mouse: ({x}, {y})")
+            self.coord_label.setText(f"Mouse: ({x}, {y}) | Rect: ({self.selection_rect.pos().toPoint().x()}, {self.selection_rect.pos().toPoint().x()})")
         else:
             self.coord_label.setText("Mouse: Out of bounds")
 
