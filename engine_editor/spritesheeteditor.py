@@ -4,6 +4,23 @@ from PySide6.QtWidgets import *
 from editorwidget import EditorWidget, GraphicsView
 
 
+class AnimationState:
+    def __init__(self, name, fps=12):
+        self.name = name
+        self.fps = fps
+        self.frames = []
+
+    def add_frame(self, pos: QPointF):
+        self.frames.append(pos)
+
+    def remove_frame(self, index: int):
+        if 0 <= index < len(self.frames):
+            del self.frames[index]
+
+    def rename(self, new_name):
+        self.name = new_name
+
+
 class MovableRect(QGraphicsRectItem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,9 +48,25 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.modified = False
         self._zoom = 1.0
         self._dragging = False
+        self.anim_states: dict[str, AnimationState] = {}
 
-        main_layout = QHBoxLayout(self)
-        self.setLayout(main_layout)
+        self.setup_ui()
+
+        self.pixmap = QPixmap(self.image_path)
+        if self.pixmap.isNull():
+            QMessageBox.critical(self, "Error", "Failed to load image.")
+            return
+
+        self.update_selection_rect()
+
+    def setup_ui(self):
+        self.setWindowTitle("Spritesheet Editor")
+
+        # --- Splitter for main layout ---
+        main_splitter = QSplitter(Qt.Horizontal)
+        layout = QHBoxLayout(self)
+        layout.addWidget(main_splitter)
+        self.setLayout(layout)
 
         # --- Left Panel (Animation Controls) ---
         self.add_anim_btn = QPushButton("Add Animation")
@@ -46,6 +79,7 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         self.anim_list = QListWidget()
         self.anim_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.anim_list.currentItemChanged.connect(lambda *_: self.on_animation_changed())
 
         left_layout = QVBoxLayout()
         left_layout.addWidget(QLabel("Animation States:"))
@@ -57,9 +91,9 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         left_widget = QWidget()
         left_widget.setLayout(left_layout)
-        main_layout.addWidget(left_widget)
+        left_widget.setMinimumWidth(120)  # Optional: prevent collapse
 
-        # --- Center Panel ---
+        # --- Center Panel (Graphics View + Frame List) ---
         center_layout = QVBoxLayout()
 
         self.view = GraphicsView()
@@ -77,13 +111,11 @@ class SpritesheetEditor(QWidget, EditorWidget):
             QMessageBox.critical(self, "Error", "Failed to load image.")
             return
 
-        # Background Checkerboard
         self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(
             self.pixmap.width(), self.pixmap.height()))
         self.checker_item.setZValue(-2)
         self.scene.addItem(self.checker_item)
 
-        # Foreground Image
         self.pixmap_item = QGraphicsPixmapItem(self.pixmap)
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
         self.pixmap_item.setZValue(-1)
@@ -91,15 +123,13 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         center_layout.addWidget(self.view)
 
-        # Mouse/Rect Position Label
         self.coord_label = QLabel("Mouse: ")
         center_layout.addWidget(self.coord_label)
 
-        # --- Frames Panel ---
         self.frames_list = QListWidget()
-        self.frames_list.setFixedHeight(64)  # Reduced height
+        self.frames_list.setFixedHeight(64)
         self.frames_list.setViewMode(QListView.IconMode)
-        self.frames_list.setIconSize(QSize(48, 48))  # Slightly smaller icons
+        self.frames_list.setIconSize(QSize(48, 48))
         self.frames_list.setResizeMode(QListWidget.Adjust)
         self.frames_list.setMovement(QListWidget.Static)
         self.frames_list.setSpacing(4)
@@ -121,9 +151,8 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         center_widget = QWidget()
         center_widget.setLayout(center_layout)
-        main_layout.addWidget(center_widget, stretch=1)
 
-        # --- Right Panel ---
+        # --- Right Panel (Settings) ---
         self.tile_width_spin = QSpinBox()
         self.tile_width_spin.setRange(1, 1024)
         self.tile_width_spin.setValue(16)
@@ -138,17 +167,33 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.fps_spin.setRange(1, 240)
         self.fps_spin.setValue(12)
         self.fps_spin.setSuffix(" FPS")
+        
+        self.fps_spin.valueChanged.connect(self.on_fps_changed)
 
-        right_panel = QVBoxLayout()
-        right_panel.addWidget(QLabel("Sprite Width:"))
-        right_panel.addWidget(self.tile_width_spin)
-        right_panel.addWidget(QLabel("Sprite Height:"))
-        right_panel.addWidget(self.tile_height_spin)
-        right_panel.addSpacing(10)
-        right_panel.addWidget(QLabel("Animation FPS:"))
-        right_panel.addWidget(self.fps_spin)
-        right_panel.addStretch()
-        main_layout.addLayout(right_panel)
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(QLabel("Sprite Width:"))
+        right_layout.addWidget(self.tile_width_spin)
+        right_layout.addWidget(QLabel("Sprite Height:"))
+        right_layout.addWidget(self.tile_height_spin)
+        right_layout.addSpacing(10)
+        right_layout.addWidget(QLabel("Animation FPS:"))
+        right_layout.addWidget(self.fps_spin)
+        right_layout.addStretch()
+
+        right_widget = QWidget()
+        right_widget.setLayout(right_layout)
+        right_widget.setMinimumWidth(100)
+
+        # --- Add all panels to splitter ---
+        main_splitter.addWidget(left_widget)
+        main_splitter.addWidget(center_widget)
+        main_splitter.addWidget(right_widget)
+
+        main_splitter.setStretchFactor(0, 0)  # Left panel
+        main_splitter.setStretchFactor(1, 1)  # Center (main focus)
+        main_splitter.setStretchFactor(2, 0)  # Right panel
+
+        main_splitter.setSizes([150, 800, 120])
 
         # --- Selection Rectangle ---
         self.selection_rect = MovableRect()
@@ -159,7 +204,8 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.update_selection_rect()
 
         # --- Animation Frame Storage ---
-        self.anim_frames = {}  # {animation_name: [QPointF, ...]}
+        self.anim_frames = {}
+
 
     def generate_checkerboard_pixmap(self, width, height, tile_size=8):
         pixmap = QPixmap(width, height)
@@ -174,13 +220,95 @@ class SpritesheetEditor(QWidget, EditorWidget):
         return pixmap
 
     def update_selection_rect(self):
-        w = self.tile_width_spin.value()
-        h = self.tile_height_spin.value()
+        w, h = self.tile_width_spin.value(), self.tile_height_spin.value()
         self.selection_rect.setRect(0, 0, w, h)
 
     def on_rect_moved(self, pos: QPointF):
-        x, y = int(pos.x()), int(pos.y())
-        self.coord_label.setText(f"Selection Rect Position: ({x}, {y})")
+        self.coord_label.setText(f"Selection Rect Position: ({int(pos.x())}, {int(pos.y())})")
+        anim = self.get_current_animation()
+        index = self.frames_list.currentRow()
+        if anim and 0 <= index < len(anim.frames):
+            anim.frames[index] = pos
+            self.modified = True
+
+    def on_animation_changed(self):
+        anim = self.get_current_animation()
+        if not anim:
+            return
+        self.fps_spin.blockSignals(True)
+        self.fps_spin.setValue(anim.fps)
+        self.fps_spin.blockSignals(False)
+
+        self.frames_list.clear()
+        for i, _ in enumerate(anim.frames):
+            self.frames_list.addItem(f"Frame {i + 1}")
+
+    def on_fps_changed(self, fps):
+        anim = self.get_current_animation()
+        if anim:
+            anim.fps = fps
+            self.modified = True
+
+    def get_current_animation(self) -> AnimationState | None:
+        item = self.anim_list.currentItem()
+        if not item:
+            return None
+        return self.anim_states.get(item.text())
+
+    def add_animation_state(self):
+        name, ok = QInputDialog.getText(self, "Add Animation", "Enter animation name:")
+        if ok and name and name not in self.anim_states:
+            anim = AnimationState(name)
+            self.anim_states[name] = anim
+            self.anim_list.addItem(name)
+            self.frames_list.clear()
+            self.modified = True
+
+    def remove_animation_state(self):
+        row = self.anim_list.currentRow()
+        if row >= 0:
+            name = self.anim_list.item(row).text()
+            del self.anim_states[name]
+            self.anim_list.takeItem(row)
+            self.frames_list.clear()
+            self.modified = True
+
+    def rename_animation_state(self):
+        item = self.anim_list.currentItem()
+        if not item:
+            return
+        old_name = item.text()
+        new_name, ok = QInputDialog.getText(self, "Rename Animation", "Enter new name:", text=old_name)
+        if ok and new_name and new_name != old_name:
+            if new_name in self.anim_states:
+                QMessageBox.warning(self, "Duplicate", f"Animation '{new_name}' already exists.")
+                return
+            anim = self.anim_states.pop(old_name)
+            anim.rename(new_name)
+            self.anim_states[new_name] = anim
+            item.setText(new_name)
+            self.modified = True
+
+    def add_frame(self):
+        anim = self.get_current_animation()
+        if anim:
+            pos = self.selection_rect.pos()
+            anim.add_frame(pos)
+            self.frames_list.addItem(f"Frame {len(anim.frames)}")
+            self.modified = True
+
+    def remove_frame(self):
+        anim = self.get_current_animation()
+        index = self.frames_list.currentRow()
+        if anim and 0 <= index < len(anim.frames):
+            anim.remove_frame(index)
+            self.frames_list.takeItem(index)
+            self.modified = True
+
+    def select_frame(self, index):
+        anim = self.get_current_animation()
+        if anim and 0 <= index < len(anim.frames):
+            self.selection_rect.setPos(anim.frames[index])
 
     def update_coordinates(self, scene_pos: QPointF):
         image_pos = self.pixmap_item.mapFromScene(scene_pos)
@@ -190,13 +318,6 @@ class SpritesheetEditor(QWidget, EditorWidget):
             self.coord_label.setText(f"Mouse: ({x}, {y}) | Rect: ({rect_pos.x()}, {rect_pos.y()})")
         else:
             self.coord_label.setText("Mouse: Out of bounds")
-
-    def is_modified(self) -> bool:
-        return self.modified
-
-    def save(self):
-        # Placeholder for save logic
-        pass
 
     def wheelEvent(self, event: QWheelEvent):
         self._zoom *= 1.25 if event.angleDelta().y() > 0 else 0.8
@@ -213,76 +334,17 @@ class SpritesheetEditor(QWidget, EditorWidget):
         if self._dragging:
             delta = event.pos() - self._drag_start_pos
             self._drag_start_pos = event.pos()
-            self.view.horizontalScrollBar().setValue(
-                self.view.horizontalScrollBar().value() - delta.x())
-            self.view.verticalScrollBar().setValue(
-                self.view.verticalScrollBar().value() - delta.y())
+            self.view.horizontalScrollBar().setValue(self.view.horizontalScrollBar().value() - delta.x())
+            self.view.verticalScrollBar().setValue(self.view.verticalScrollBar().value() - delta.y())
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MiddleButton:
             self._dragging = False
             self.setCursor(Qt.ArrowCursor)
 
-    def add_animation_state(self):
-        name, ok = QInputDialog.getText(self, "Add Animation", "Enter animation name:")
-        if ok and name:
-            if name in self.anim_frames:
-                QMessageBox.warning(self, "Duplicate", f"Animation '{name}' already exists.")
-                return
-            self.anim_list.addItem(name)
-            self.anim_frames[name] = []
-            self.frames_list.clear()
-            self.modified = True
+    def is_modified(self) -> bool:
+        return self.modified
 
-    def remove_animation_state(self):
-        selected = self.anim_list.currentRow()
-        if selected >= 0:
-            name = self.anim_list.item(selected).text()
-            del self.anim_frames[name]
-            self.anim_list.takeItem(selected)
-            self.frames_list.clear()
-            self.modified = True
-
-    def rename_animation_state(self):
-        selected_item = self.anim_list.currentItem()
-        if not selected_item:
-            QMessageBox.information(self, "No Selection", "Select an animation to rename.")
-            return
-        new_name, ok = QInputDialog.getText(self, "Rename Animation", "Enter new name:", text=selected_item.text())
-        if ok and new_name and new_name != selected_item.text():
-            if new_name in self.anim_frames:
-                QMessageBox.warning(self, "Duplicate", f"Animation '{new_name}' already exists.")
-                return
-            old_name = selected_item.text()
-            self.anim_frames[new_name] = self.anim_frames.pop(old_name)
-            selected_item.setText(new_name)
-            self.modified = True
-
-    def add_frame(self):
-        current_item = self.anim_list.currentItem()
-        if not current_item:
-            QMessageBox.information(self, "No Animation", "Select an animation first.")
-            return
-        name = current_item.text()
-        pos = self.selection_rect.pos()
-        self.anim_frames[name].append(pos)
-        self.frames_list.addItem(f"Frame {len(self.anim_frames[name])}")
-        self.modified = True
-
-    def remove_frame(self):
-        current_item = self.anim_list.currentItem()
-        index = self.frames_list.currentRow()
-        if current_item and index >= 0:
-            name = current_item.text()
-            del self.anim_frames[name][index]
-            self.frames_list.takeItem(index)
-            self.modified = True
-
-    def select_frame(self, index):
-        current_item = self.anim_list.currentItem()
-        if current_item and index >= 0:
-            name = current_item.text()
-            frames = self.anim_frames.get(name, [])
-            if 0 <= index < len(frames):
-                pos = frames[index]
-                self.selection_rect.setPos(pos)
+    def save(self):
+        # Placeholder: implement saving animation states to a file (e.g., JSON)
+        pass
