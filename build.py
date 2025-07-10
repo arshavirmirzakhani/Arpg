@@ -3,6 +3,8 @@ import shutil
 import subprocess
 import sys
 
+from sympy import false
+
 # configuration
 build_dir = "build"
 cmake_args = [
@@ -13,28 +15,35 @@ cmake_args = [
 ]
 
 build_config = "Debug"
+build_editor = False
 
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == "release": 
         build_config = "Release"
+    if sys.argv[1].lower() == "editor": 
+        build_editor = True
 
-if not os.path.isdir(build_dir):
-    os.makedirs(build_dir)
+if build_editor:
+    subprocess.run(["pyinstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
 
-os.chdir(build_dir)
+else:
+    if not os.path.isdir(build_dir):
+        os.makedirs(build_dir)
 
-try:
-    subprocess.run(["cmake"] + cmake_args)
-except subprocess.CalledProcessError as e:
-    print("CMake configuration failed:", e)
-    sys.exit(1)
+    os.chdir(build_dir)
 
-try:
-    subprocess.run(["cmake", "--build", ".", "--config", build_config])
-except subprocess.CalledProcessError as e:
-    print("Build failed:", e)
-    sys.exit(1)
+    try:
+        subprocess.run(["cmake"] + cmake_args)
+    except subprocess.CalledProcessError as e:
+        print("CMake configuration failed:", e)
+        sys.exit(1)
 
-os.chdir("..")
+    try:
+        subprocess.run(["cmake", "--build", ".", "--config", build_config])
+    except subprocess.CalledProcessError as e:
+        print("Build failed:", e)
+        sys.exit(1)
 
-print("Build completed successfully.")
+    os.chdir("..")
+
+    print("Build completed successfully.")

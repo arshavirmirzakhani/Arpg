@@ -8,6 +8,7 @@ import os
 import zipfile
 import glob
 
+from project import *
 from projecteditor import ProjectEditor
 from imageviewer import ImageViewer
 from spritesheeteditor import SpritesheetEditor
@@ -28,6 +29,11 @@ class MainWindow(QMainWindow):
         self.open_project_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentOpen))
         self.open_project_action.clicked.connect(self.open_project_directory_dialog)
         self.toolbar.addWidget(self.open_project_action)
+        
+        self.new_project_action = QPushButton("New", self)
+        self.new_project_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentNew))
+        self.new_project_action.clicked.connect(self.new_project_directory_dialog)
+        self.toolbar.addWidget(self.new_project_action)
 
         self.save_action = QPushButton("Save", self)
         self.save_action.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSave))
@@ -88,6 +94,28 @@ class MainWindow(QMainWindow):
             )
             self.tree_view.setRootIndex(QModelIndex())
 
+    def new_project_directory_dialog(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Project Folder", "")
+        if not directory:
+            return
+
+
+        if not is_directory_empty(directory):
+            QMessageBox.warning(
+                self,
+                "Directory is not empty",
+                "The selected folder is not empty."
+            )
+            self.tree_view.setRootIndex(QModelIndex())          
+            return
+
+        create_project(directory)
+
+        self.model.setRootPath(directory)
+        self.tree_view.setRootIndex(self.model.index(directory))
+        self.current_project_path = directory
+        
+            
     def is_valid_project_config(self, path):
         try:
             with open(path, "r", encoding="utf-8") as f:
