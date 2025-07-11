@@ -2,7 +2,8 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from editorwidget import EditorWidget, GraphicsView
-
+import toml
+import os
 
 class AnimationState:
     def __init__(self, name, fps=12):
@@ -42,9 +43,11 @@ class MovableRect(QGraphicsRectItem):
 
 
 class SpritesheetEditor(QWidget, EditorWidget):
-    def __init__(self, image_path):
+    def __init__(self, toml_path,project_path):
         super().__init__()
-        self.image_path = image_path
+        self.toml_path = toml_path
+        self.project_path = project_path
+        self.image_path = ""
         self.modified = False
         self._zoom = 1.0
         self._dragging = False
@@ -54,10 +57,11 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         self.pixmap = QPixmap(self.image_path)
         if self.pixmap.isNull():
-            QMessageBox.critical(self, "Error", "Failed to load image.")
-            return
-
+            pass
+        
         self.update_selection_rect()
+        
+        self.load()
 
     def setup_ui(self):
         self.setWindowTitle("Spritesheet Editor")
@@ -108,8 +112,7 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         self.pixmap = QPixmap(self.image_path)
         if self.pixmap.isNull():
-            QMessageBox.critical(self, "Error", "Failed to load image.")
-            return
+            pass
 
         self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(
             self.pixmap.width(), self.pixmap.height()))
@@ -153,6 +156,10 @@ class SpritesheetEditor(QWidget, EditorWidget):
         center_widget.setLayout(center_layout)
 
         # --- Right Panel (Settings) ---
+        
+        self.load_image_btn = QPushButton("Load Image")
+        self.load_image_btn.clicked.connect(self.load_image)        
+        
         self.tile_width_spin = QSpinBox()
         self.tile_width_spin.setRange(1, 1024)
         self.tile_width_spin.setValue(16)
@@ -171,6 +178,8 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.fps_spin.valueChanged.connect(self.on_fps_changed)
 
         right_layout = QVBoxLayout()
+        right_layout.addWidget(self.load_image_btn)
+        right_layout.addSpacing(10)
         right_layout.addWidget(QLabel("Sprite Width:"))
         right_layout.addWidget(self.tile_width_spin)
         right_layout.addWidget(QLabel("Sprite Height:"))
@@ -206,8 +215,40 @@ class SpritesheetEditor(QWidget, EditorWidget):
         # --- Animation Frame Storage ---
         self.anim_frames = {}
 
+    def load_image(self):
+        dialog = QFileDialog(self, "Select Spritesheet Image", self.project_path + "/assets")
+        dialog.setNameFilter("Images (*.png *.jpg *.bmp *.gif)")
+        dialog.setFileMode(QFileDialog.ExistingFile)
+
+        if dialog.exec():
+            selected = dialog.selectedFiles()[0]
+            if selected.startswith(self.project_path + "/assets"):
+                self.image_path = selected
+                self.pixmap = QPixmap(self.image_path)
+                if not self.pixmap.isNull():
+                    self.update_image_scene()
+                    self.modified = True
+            else:
+                QMessageBox.warning(self, "Invalid Selection", "Please select an image from within the 'assets' directory.")
+
+    def update_image_scene(self):
+        self.scene.removeItem(self.pixmap_item)
+        self.scene.removeItem(self.checker_item)
+
+        self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(
+            self.pixmap.width(), self.pixmap.height()))
+        self.checker_item.setZValue(-2)
+        self.scene.addItem(self.checker_item)
+
+        self.pixmap_item = QGraphicsPixmapItem(self.pixmap)
+        self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
+        self.pixmap_item.setZValue(-1)
+        self.scene.addItem(self.pixmap_item)
 
     def generate_checkerboard_pixmap(self, width, height, tile_size=8):
+        if width <= 0 or height <= 0:
+            return QPixmap()  
+        
         pixmap = QPixmap(width, height)
         pixmap.fill(Qt.transparent)
         painter = QPainter(pixmap)
@@ -242,6 +283,9 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.frames_list.clear()
         for i, _ in enumerate(anim.frames):
             self.frames_list.addItem(f"Frame {i + 1}")
+            
+        if anim.frames:
+            self.frames_list.setCurrentRow(0) 
 
     def on_fps_changed(self, fps):
         anim = self.get_current_animation()
@@ -345,6 +389,68 @@ class SpritesheetEditor(QWidget, EditorWidget):
     def is_modified(self) -> bool:
         return self.modified
 
+    def load(self):
+        if not os.path.exists(self.toml_path):
+            return
+
+        with open(self.toml_path, "r") as f:
+            data = toml.load(f)
+
+        rel_image_path = data.get("image_path", "")
+        abs_image_path = os.path.join(self.project_path, "assets", rel_image_path)
+        if os.path.exists(abs_image_path):
+            self.image_path = abs_image_path
+            self.pixmap = QPixmap(self.image_path)
+            if not self.pixmap.isNull():
+                self.update_image_scene()
+
+        self.tile_width_spin.setValue(data.get("width", 16))
+        self.tile_height_spin.setValue(data.get("height", 16))
+        self.fps_spin.setValue(data.get("fps", 12))
+
+        self.anim_states.clear()
+        self.anim_list.clear()
+        self.frames_list.clear()
+
+        states = data.get("states", {})
+        for name, state_data in states.items():
+            anim = AnimationState(name)
+            for frame in state_data.get("frames", []):
+                if isinstance(frame, list) and len(frame) == 2:
+                    pos = QPointF(frame[0], frame[1])
+                    anim.add_frame(pos)
+            self.anim_states[name] = anim
+            self.anim_list.addItem(name)
+
+        if self.anim_list.count() > 0:
+            self.anim_list.setCurrentRow(0)
+
+        self.modified = False
+
+
     def save(self):
-        # Placeholder: implement saving animation states to a file (e.g., JSON)
-        pass
+        if not self.image_path:
+            QMessageBox.warning(self, "Save Error", "No image loaded.")
+            return
+
+        rel_image_path = os.path.relpath(self.image_path, self.project_path + "/assets").replace("\\", "/")
+
+        data = {
+            "image_path": rel_image_path,
+            "fps": self.fps_spin.value(),
+            "width": self.tile_width_spin.value(),
+            "height": self.tile_height_spin.value(),
+            "states": {}
+        }
+
+        for name, anim in self.anim_states.items():
+            frames = []
+            for frame in anim.frames:
+                frames.append([int(frame.x()), int(frame.y())])
+            data["states"][name] = {"frames": frames}
+
+        with open(self.toml_path, "w") as f:
+            toml.dump(data, f)
+
+        self.modified = False
+
