@@ -414,7 +414,8 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         states = data.get("states", {})
         for name, state_data in states.items():
-            anim = AnimationState(name)
+            fps = state_data.get("fps", 12)  # default to 12 if not found
+            anim = AnimationState(name, fps=fps)
             for frame in state_data.get("frames", []):
                 if isinstance(frame, list) and len(frame) == 2:
                     pos = QPointF(frame[0], frame[1])
@@ -444,10 +445,11 @@ class SpritesheetEditor(QWidget, EditorWidget):
         }
 
         for name, anim in self.anim_states.items():
-            frames = []
-            for frame in anim.frames:
-                frames.append([int(frame.x()), int(frame.y())])
-            data["states"][name] = {"frames": frames}
+            frames = [[int(frame.x()), int(frame.y())] for frame in anim.frames]
+            data["states"][name] = {
+                "fps": anim.fps,
+                "frames": frames
+            }
 
         with open(self.toml_path, "w") as f:
             toml.dump(data, f)

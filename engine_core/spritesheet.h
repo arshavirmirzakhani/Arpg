@@ -8,6 +8,11 @@ struct SpriteFrame {
 		int y = 0;
 };
 
+struct AnimationState {
+		std::vector<SpriteFrame> frames;
+		int fps;
+};
+
 class SpriteSheet {
 	private:
 	public:
@@ -21,5 +26,5 @@ class SpriteSheet {
 		int frame_width	 = TILE_SIZE;
 		int frame_height = TILE_SIZE;
 
-		std::unordered_map<std::string, std::vector<SpriteFrame>> states;
+		std::unordered_map<std::string, AnimationState> states;
 };

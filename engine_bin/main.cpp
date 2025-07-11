@@ -14,7 +14,7 @@ int main(void) {
 
 	struct zip_t* zip = zip_open("data.arpg", 0, 'r');
 	{
-		zip_entry_open(zip, "project.toml");
+		zip_entry_open(zip, "project.toml"); // read project data
 		{
 			bufsize = zip_entry_size(zip);
 			buf	= (unsigned char*)calloc(sizeof(unsigned char), bufsize);
@@ -28,10 +28,34 @@ int main(void) {
 			WINDOW_TITLE = *title;
 		}
 		zip_entry_close(zip);
-	}
-	zip_close(zip);
 
-	free(buf);
+		int i, n = zip_entries_total(zip);
+		for (i = 0; i < n; ++i) {
+			zip_entry_openbyindex(zip, i);
+			{
+				if (!zip_entry_isdir(zip)) {
+					if (std::string(zip_entry_name(zip)).find("spritesheets/") != std::string::npos &&
+					    std::string(zip_entry_name(zip)).find("spritesheets/") == 0) {
+						bufsize = zip_entry_size(zip);
+						buf	= (unsigned char*)calloc(sizeof(unsigned char), bufsize);
+
+						zip_entry_noallocread(zip, (void*)buf, bufsize);
+
+						std::string_view string = (const char*)buf;
+						toml::table tbl		= toml::parse(string);
+
+						auto image  = tbl.get("image_path")->value<std::string>();
+						auto width  = tbl.get("width")->value<toml::int32_t>();
+						auto height = tbl.get("height")->value<toml::int32_t>();
+					}
+				}
+			}
+			zip_entry_close(zip);
+		}
+		zip_close(zip);
+
+		free(buf);
+	}
 
 	// Initialize game
 

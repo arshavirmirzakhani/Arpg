@@ -209,7 +209,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Saved", "project saved successfully.")
 
     def export_project(self):
-        with zipfile.ZipFile(self.current_project_path + "/data.arpg","w") as zip:
+        with zipfile.ZipFile(self.current_project_path + "/data.arpg","w",compression=zipfile.ZIP_DEFLATED,compresslevel=6) as zip:
             zip.write(self.current_project_path + "/project.toml","project.toml")
             
             zip.writestr("global/","")
