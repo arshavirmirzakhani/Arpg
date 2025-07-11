@@ -39,4 +39,4 @@ jobs:
         
     - name: Build
       run: |
-        python build.py
+        python build.py editor

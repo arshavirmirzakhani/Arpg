@@ -171,14 +171,20 @@ class MainWindow(QMainWindow):
                 self,
                 "Unsaved Changes",
                 "This tab has unsaved changes. Do you want to save before closing?",
-                QMessageBox.Yes | QMessageBox.No
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             )
-            if reply == QMessageBox.No:
+
+            if reply == QMessageBox.Cancel:
                 return
+
             elif reply == QMessageBox.Yes and hasattr(widget, "save"):
                 widget.save()
 
+            elif reply == QMessageBox.No:
+                pass 
+
         self.tab_widget.removeTab(index)
+
 
     def save_project(self):
         for i in range(self.tab_widget.count()):
