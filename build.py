@@ -27,7 +27,7 @@ if build_editor:
     if platform.system() == "Darwin":
         subprocess.run(["python", "-m", "PyInstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])  
     else:    
-        subprocess.run(["PyInstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
+        subprocess.run(["pyinstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
 
 else:
     if not os.path.isdir(build_dir):
