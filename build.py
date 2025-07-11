@@ -3,8 +3,6 @@ import shutil
 import subprocess
 import sys
 
-from sympy import false
-
 # configuration
 build_dir = "build"
 cmake_args = [
