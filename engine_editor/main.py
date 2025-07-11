@@ -223,6 +223,10 @@ class MainWindow(QMainWindow):
             zip.writestr("actors/","")
             for file in glob.iglob(self.current_project_path + "/actors/*.toml"):
                 zip.write(file,file[len(self.current_project_path):])
+
+            zip.writestr("spritesheets/","")
+            for file in glob.iglob(self.current_project_path + "/spritesheets/*.toml"):
+                zip.write(file,file[len(self.current_project_path):])
               
             zip.writestr("assets/","")  
             for file in glob.iglob(self.current_project_path + "/assets/*"):
