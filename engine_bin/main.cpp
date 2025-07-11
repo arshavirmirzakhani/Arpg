@@ -11,9 +11,10 @@ int main(void) {
 	// Load game data
 	unsigned char* buf;
 	size_t bufsize;
+	bool zip_loaded = true;
 
 	struct zip_t* zip = zip_open("data.arpg", 0, 'r');
-	{
+	if (zip) {
 		zip_entry_open(zip, "project.toml"); // read project data
 		{
 			bufsize = zip_entry_size(zip);
@@ -55,6 +56,8 @@ int main(void) {
 		zip_close(zip);
 
 		free(buf);
+	} else {
+		zip_loaded = false;
 	}
 
 	// Initialize game
@@ -76,9 +79,15 @@ int main(void) {
 
 		BeginTextureMode(target);
 
-		process();
+		if (zip_loaded) {
+			process();
+		} else {
+			DrawText("Game data is not found!", (WINDOW_WIDTH / 2) - (MeasureText("Game data is not found!", 20) / 2), 100, 20, RED);
+			DrawText("Please check if \"data.arpg\" exist", (WINDOW_WIDTH / 2) - (MeasureText("Please check if \"data.arpg\" exist", 20) / 2), 125,
+				 20, RED);
+		}
 
-		ClearBackground(GREEN);
+		ClearBackground(BLACK);
 		EndTextureMode();
 
 		ClearBackground(BLACK);
