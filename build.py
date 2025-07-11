@@ -1,5 +1,5 @@
 import os
-import shutil
+import platform
 import subprocess
 import sys
 
@@ -23,7 +23,11 @@ if len(sys.argv) > 1:
 
 if build_editor:
     subprocess.run(["pip" ,"install" ,"-r" ,"engine_editor/requirements.txt"])
-    subprocess.run(["pyinstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
+    
+    if platform.system() == "Darwin":
+        subprocess.run(["python", "-m", "pyinstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])  
+    else:    
+        subprocess.run(["pyinstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
 
 else:
     if not os.path.isdir(build_dir):
