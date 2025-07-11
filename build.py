@@ -22,7 +22,8 @@ if len(sys.argv) > 1:
         build_editor = True
 
 if build_editor:
-    subprocess.run(["pyinstaller" ,"./engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
+    subprocess.run(["pip" ,"install" ,"-r" ,"engine_editor/requirements.txt"])
+    subprocess.run(["pyinstaller" ,"engine_editor/main.py" ,"--onefile" ,"--exclude" ,"PyQt6"])
 
 else:
     if not os.path.isdir(build_dir):
