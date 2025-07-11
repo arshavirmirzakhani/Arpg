@@ -29,7 +29,7 @@ int main(void) {
 		}
 		zip_entry_close(zip);
 
-		int i, n = zip_entries_total(zip);
+		int i, n = (int)zip_entries_total(zip);
 		for (i = 0; i < n; ++i) {
 			zip_entry_openbyindex(zip, i);
 			{
