@@ -3,13 +3,12 @@
 #include "global.h"
 #include "spritesheet.h"
 
-int player_pos_x = 50;
-int player_pos_y = 50;
-
+int player_pos_x = 50, player_pos_y = 50;
+int player_width = 16, player_height = 16;
 int player_speed = 5;
 
 std::string player_sprite_sheet_name;
-
+SpriteSheet player_spritsheet;
 void process_player() {
 	// Movement logic
 	if ((IsKeyDown(RIGHT_BUTTON) || IsKeyDown(LEFT_BUTTON)) && (IsKeyDown(DOWN_BUTTON) || IsKeyDown(UP_BUTTON))) {
@@ -19,10 +18,15 @@ void process_player() {
 		player_pos_x += player_speed * (IsKeyDown(RIGHT_BUTTON) - IsKeyDown(LEFT_BUTTON));
 		player_pos_y += player_speed * (IsKeyDown(DOWN_BUTTON) - IsKeyDown(UP_BUTTON));
 	}
+}
 
+void render_player() {
 	auto it = spritesheets_list.find(player_sprite_sheet_name);
 	if (it != spritesheets_list.end()) {
 		SpriteSheet& sheet = it->second;
+
+		player_height = sheet.frame_height;
+		player_width  = sheet.frame_width;
 
 		if (!sheet.states.empty()) {
 			auto anim_it		   = sheet.states.begin();

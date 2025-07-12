@@ -131,20 +131,30 @@ int main(void) {
 
 	RenderTexture2D target = LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT);
 
+	camera.target	= {(float)player_pos_x + player_width / 2, (float)player_pos_y + player_height / 2};
+	camera.offset	= {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
+	camera.rotation = 0.0f;
+	camera.zoom	= 5.0f;
+
 	while (!WindowShouldClose()) {
 		BeginDrawing();
 
+		process();
+		camera.target = {(float)player_pos_x + player_width / 2, (float)player_pos_y + player_height / 2};
+
 		BeginTextureMode(target);
+		BeginMode2D(camera);
+		ClearBackground(BLUE);
 
 		if (zip_loaded) {
-			process();
+			render();
 		} else {
 			DrawText("Game data is not found!", (WINDOW_WIDTH / 2) - (MeasureText("Game data is not found!", 40) / 2), 100, 40, RED);
 			DrawText("Please check if \"data.arpg\" exist", (WINDOW_WIDTH / 2) - (MeasureText("Please check if \"data.arpg\" exist", 30) / 2), 150,
 				 30, RED);
 		}
 
-		ClearBackground(BLACK);
+		EndMode2D();
 		EndTextureMode();
 
 		ClearBackground(BLACK);
