@@ -34,7 +34,7 @@ int main(void) {
 		for (i = 0; i < n; ++i) {
 			zip_entry_openbyindex(zip, i);
 			{
-				if (!zip_entry_isdir(zip)) {
+				if (!zip_entry_isdir(zip)) { // load spritesheets
 					if (std::string(zip_entry_name(zip)).find("spritesheets/") != std::string::npos &&
 					    std::string(zip_entry_name(zip)).find("spritesheets/") == 0) {
 						bufsize = zip_entry_size(zip);
@@ -48,6 +48,35 @@ int main(void) {
 						auto image  = tbl.get("image_path")->value<std::string>();
 						auto width  = tbl.get("width")->value<toml::int32_t>();
 						auto height = tbl.get("height")->value<toml::int32_t>();
+
+						SpriteSheet sheet;
+
+						sheet.image_path   = *image;
+						sheet.frame_width  = *width;
+						sheet.frame_height = *height;
+
+						if (auto states_tbl = tbl["states"].as_table()) {
+							for (const auto& [state_name, state_value] : *states_tbl) {
+								if (auto anim_tbl = state_value.as_table()) {
+									AnimationState anim;
+									anim.fps = anim_tbl->get("fps")->value_or(6);
+
+									if (auto frames_array = anim_tbl->get("frames")->as_array()) {
+										for (const auto& frame : *frames_array) {
+											if (auto xy = frame.as_array(); xy && xy->size() == 2) {
+												int x = (*xy)[0].value_or(0);
+												int y = (*xy)[1].value_or(0);
+												anim.frames.push_back({x, y});
+											}
+										}
+									}
+									sheet.states[state_name.data()] = anim;
+								}
+							}
+						}
+
+						std::string clean_name	      = std::string(zip_entry_name(zip));
+						spritesheets_list[clean_name] = sheet;
 					}
 				}
 			}
@@ -61,6 +90,8 @@ int main(void) {
 	}
 
 	// Initialize game
+
+	std::cout << spritesheets_list["sprite.toml"].image_path << std::endl;
 
 	// Initialize window
 	SetTraceLogLevel(LOG_WARNING);
@@ -82,9 +113,9 @@ int main(void) {
 		if (zip_loaded) {
 			process();
 		} else {
-			DrawText("Game data is not found!", (WINDOW_WIDTH / 2) - (MeasureText("Game data is not found!", 20) / 2), 100, 20, RED);
-			DrawText("Please check if \"data.arpg\" exist", (WINDOW_WIDTH / 2) - (MeasureText("Please check if \"data.arpg\" exist", 20) / 2), 125,
-				 20, RED);
+			DrawText("Game data is not found!", (WINDOW_WIDTH / 2) - (MeasureText("Game data is not found!", 40) / 2), 100, 40, RED);
+			DrawText("Please check if \"data.arpg\" exist", (WINDOW_WIDTH / 2) - (MeasureText("Please check if \"data.arpg\" exist", 30) / 2), 150,
+				 30, RED);
 		}
 
 		ClearBackground(BLACK);

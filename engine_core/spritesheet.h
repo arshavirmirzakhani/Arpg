@@ -21,6 +21,7 @@ class SpriteSheet {
 
 		SPRITE_SHEET_TYPES sheet_type = NONE;
 
+		std::string image_path;
 		Texture2D image;
 
 		int frame_width	 = TILE_SIZE;
@@ -28,3 +29,5 @@ class SpriteSheet {
 
 		std::unordered_map<std::string, AnimationState> states;
 };
+
+std::unordered_map<std::string, SpriteSheet> spritesheets_list;
