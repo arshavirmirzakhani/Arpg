@@ -15,8 +15,16 @@ ${PROJECT_SOURCE_DIR}/vendor/zip/src
 ${PROJECT_SOURCE_DIR}/engine_core
 )
 
-
 add_executable(arpg_engine ${SOURCES_ENGINE})
+
+if (WIN32)
+    if (MSVC)
+        target_link_options(arpg_engine PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+    else()
+        target_link_options(arpg_engine PRIVATE -mwindows)
+    endif()
+endif()
+
 
 
 target_include_directories(arpg_engine PRIVATE ${COMMON_INCLUDES})
@@ -27,5 +35,6 @@ add_subdirectory(vendor/zip)
 add_subdirectory(vendor/lua)
 
 target_link_libraries(arpg_engine PRIVATE raylib lua_static)
+
 
 add_compile_options(-Wall -Wextra -Werror)
