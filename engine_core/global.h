@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <map>
 #include <raygui.h>
 #include <raylib.h>
@@ -8,6 +9,12 @@
 
 #define TILE_SIZE 8
 #define DIAGONAL_SPEED_FACTOR 0.8
+struct AssetData {
+		const unsigned char* data;
+		size_t size;
+};
+
+std::unordered_map<std::string, AssetData> assets_list;
 
 enum DIRECTION { UP, UP_RIGHT, RIGHT, DOWN_RIGHT, DOWN, DOWN_LEFT, LEFT, UP_LEFT };
 
@@ -30,3 +37,5 @@ DIRECTION rotate_ccw_45(DIRECTION dir) {
 
 	return (DIRECTION)result;
 }
+
+Camera2D camera = {0};

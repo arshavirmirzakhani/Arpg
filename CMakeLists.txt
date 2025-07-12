@@ -17,13 +17,16 @@ ${PROJECT_SOURCE_DIR}/engine_core
 
 add_executable(arpg_engine ${SOURCES_ENGINE})
 
-if (WIN32)
-    if (MSVC)
-        target_link_options(arpg_engine PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
-    else()
-        target_link_options(arpg_engine PRIVATE -mwindows)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (WIN32)
+        if (MSVC)
+            target_link_options(arpg_engine PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+        else()
+            target_link_options(arpg_engine PRIVATE -mwindows)
+        endif()
     endif()
 endif()
+
 
 
 

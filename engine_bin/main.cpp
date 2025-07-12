@@ -15,6 +15,7 @@ int main(void) {
 
 	struct zip_t* zip = zip_open("data.arpg", 0, 'r');
 	if (zip) {
+
 		zip_entry_open(zip, "project.toml"); // read project data
 		{
 			bufsize = zip_entry_size(zip);
@@ -22,8 +23,8 @@ int main(void) {
 
 			zip_entry_noallocread(zip, (void*)buf, bufsize);
 
-			std::string_view string = (const char*)buf;
-			toml::table tbl		= toml::parse(string);
+			std::string_view string((const char*)buf, bufsize);
+			toml::table tbl = toml::parse(string);
 
 			auto title   = tbl.get("window_title")->value<std::string>();
 			WINDOW_TITLE = *title;
@@ -34,16 +35,30 @@ int main(void) {
 		for (i = 0; i < n; ++i) {
 			zip_entry_openbyindex(zip, i);
 			{
-				if (!zip_entry_isdir(zip)) { // load spritesheets
-					if (std::string(zip_entry_name(zip)).find("spritesheets/") != std::string::npos &&
-					    std::string(zip_entry_name(zip)).find("spritesheets/") == 0) {
+				if (!zip_entry_isdir(zip)) {
+
+					// load assets
+					if (std::string(zip_entry_name(zip)).find("assets/") != std::string::npos &&
+					    std::string(zip_entry_name(zip)).find("assets/") == 0) {
 						bufsize = zip_entry_size(zip);
 						buf	= (unsigned char*)calloc(sizeof(unsigned char), bufsize);
 
 						zip_entry_noallocread(zip, (void*)buf, bufsize);
 
-						std::string_view string = (const char*)buf;
-						toml::table tbl		= toml::parse(string);
+						assets_list[std::string(zip_entry_name(zip)).substr(strlen("assets/"))] = AssetData{buf, bufsize};
+					}
+
+					// load spritesheets
+
+					else if (std::string(zip_entry_name(zip)).find("spritesheets/") != std::string::npos &&
+						 std::string(zip_entry_name(zip)).find("spritesheets/") == 0) {
+						bufsize = zip_entry_size(zip);
+						buf	= (unsigned char*)calloc(sizeof(unsigned char), bufsize);
+
+						zip_entry_noallocread(zip, (void*)buf, bufsize);
+
+						std::string_view string((const char*)buf, bufsize);
+						toml::table tbl = toml::parse(string);
 
 						auto image  = tbl.get("image_path")->value<std::string>();
 						auto width  = tbl.get("width")->value<toml::int32_t>();
@@ -75,8 +90,7 @@ int main(void) {
 							}
 						}
 
-						std::string clean_name	      = std::string(zip_entry_name(zip));
-						spritesheets_list[clean_name] = sheet;
+						spritesheets_list[std::string(zip_entry_name(zip)).substr(strlen("spritesheets/"))] = sheet;
 					}
 				}
 			}
@@ -89,23 +103,35 @@ int main(void) {
 		zip_loaded = false;
 	}
 
-	// Initialize game
-
-	std::cout << spritesheets_list["sprite.toml"].image_path << std::endl;
-
 	// Initialize window
-	SetTraceLogLevel(LOG_WARNING);
+	// SetTraceLogLevel(LOG_WARNING);
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE.c_str());
 	InitAudioDevice();
 	SetTargetFPS(60);
+
+	// Initialize game
+
+	for (auto& [name, spritesheet] : spritesheets_list) {
+		auto it		       = assets_list.find(spritesheet.image_path);
+		const AssetData& asset = it->second;
+
+		Image img = LoadImageFromMemory(GetFileExtension(spritesheet.image_path.c_str()), asset.data, (int)asset.size);
+
+		TraceLog(LOG_INFO, "before texture");
+		spritesheet.image = LoadTextureFromImage(img);
+		TraceLog(LOG_INFO, "after texture");
+
+		UnloadImage(img);
+	}
+
+	player_sprite_sheet_name = "sprite.toml";
 
 	// Main game loop
 
 	RenderTexture2D target = LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT);
 
 	while (!WindowShouldClose()) {
-
 		BeginDrawing();
 
 		BeginTextureMode(target);
