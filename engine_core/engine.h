@@ -6,5 +6,6 @@
 #include "stage.h"
 #include "tilemap.h"
 
+void init() { init_player(); }
 void process() { process_player(); }
 void render() { render_player(); }

@@ -9,6 +9,9 @@ int player_speed = 5;
 
 std::string player_sprite_sheet_name;
 SpriteSheet player_spritsheet;
+
+void init_player() { player_spritsheet = spritesheets_list.find(player_sprite_sheet_name)->second; }
+
 void process_player() {
 	// Movement logic
 	if ((IsKeyDown(RIGHT_BUTTON) || IsKeyDown(LEFT_BUTTON)) && (IsKeyDown(DOWN_BUTTON) || IsKeyDown(UP_BUTTON))) {
@@ -21,31 +24,26 @@ void process_player() {
 }
 
 void render_player() {
-	auto it = spritesheets_list.find(player_sprite_sheet_name);
-	if (it != spritesheets_list.end()) {
-		SpriteSheet& sheet = it->second;
 
-		player_height = sheet.frame_height;
-		player_width  = sheet.frame_width;
+	player_height = player_spritsheet.frame_height;
+	player_width  = player_spritsheet.frame_width;
 
-		if (!sheet.states.empty()) {
-			auto anim_it		   = sheet.states.begin();
-			const AnimationState& anim = anim_it->second;
+	if (!player_spritsheet.states.empty()) {
+		auto anim_it		   = player_spritsheet.states.begin();
+		const AnimationState& anim = anim_it->second;
 
-			if (!anim.frames.empty()) {
-				const SpriteFrame& frame = anim.frames[0];
+		if (!anim.frames.empty()) {
+			const SpriteFrame& frame = anim.frames[0];
 
-				Rectangle source = {(float)frame.x, (float)frame.y, (float)sheet.frame_width, (float)sheet.frame_height};
+			Rectangle source = {(float)frame.x, (float)frame.y, (float)player_spritsheet.frame_width, (float)player_spritsheet.frame_height};
 
-				Rectangle dest = {(float)player_pos_x, (float)player_pos_y, (float)sheet.frame_width, (float)sheet.frame_height};
+			Rectangle dest = {(float)player_pos_x, (float)player_pos_y, (float)player_spritsheet.frame_width,
+					  (float)player_spritsheet.frame_height};
 
-				Vector2 origin = {0, 0};
+			Vector2 origin = {0, 0};
 
-				DrawTexturePro(sheet.image, source, dest, origin, 0.0f, WHITE);
-				return;
-			}
+			DrawTexturePro(player_spritsheet.image, source, dest, origin, 0.0f, WHITE);
+			return;
 		}
 	}
-
-	DrawRectangle(player_pos_x, player_pos_y, 50, 50, RED);
 }

@@ -9,6 +9,9 @@ class EditorWidget:
     def save(self):
         pass
     
+    def load(self):
+        pass
+    
 # Custom QGraphicsView that emits a signal when the mouse moves
 class GraphicsView(QGraphicsView):
     cursorMoved = Signal(QPointF)  # Emits scene position of cursor

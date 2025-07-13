@@ -27,6 +27,9 @@ class SpriteSheet {
 		int frame_width	 = TILE_SIZE;
 		int frame_height = TILE_SIZE;
 
+		float animation_timer	= 0.0f;
+		int current_frame_index = 0;
+
 		std::unordered_map<std::string, AnimationState> states;
 };
 

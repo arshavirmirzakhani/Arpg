@@ -100,7 +100,8 @@ int main(void) {
 
 		free(buf);
 	} else {
-		zip_loaded = false;
+		WINDOW_TITLE = "data not found";
+		zip_loaded   = false;
 	}
 
 	// Initialize window
@@ -110,7 +111,7 @@ int main(void) {
 	InitAudioDevice();
 	SetTargetFPS(60);
 
-	// Initialize game
+	// Initialize assets and game
 
 	for (auto& [name, spritesheet] : spritesheets_list) {
 		auto it		       = assets_list.find(spritesheet.image_path);
@@ -118,9 +119,7 @@ int main(void) {
 
 		Image img = LoadImageFromMemory(GetFileExtension(spritesheet.image_path.c_str()), asset.data, (int)asset.size);
 
-		TraceLog(LOG_INFO, "before texture");
 		spritesheet.image = LoadTextureFromImage(img);
-		TraceLog(LOG_INFO, "after texture");
 
 		UnloadImage(img);
 	}
@@ -128,6 +127,8 @@ int main(void) {
 	player_sprite_sheet_name = "sprite.toml";
 
 	// Main game loop
+
+	init();
 
 	RenderTexture2D target = LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT);
 

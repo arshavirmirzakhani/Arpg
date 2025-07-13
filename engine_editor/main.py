@@ -1,7 +1,6 @@
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
-from sympy import im
 import toml
 import sys
 import os
@@ -58,6 +57,9 @@ class MainWindow(QMainWindow):
         self.tree_view.setModel(self.model)
         self.tree_view.setRootIndex(QModelIndex())
         self.tree_view.clicked.connect(self.on_tree_item_clicked)
+        
+        self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree_view.customContextMenuRequested.connect(self.on_tree_context_menu)
 
         # Main content area as tab widget
         self.tab_widget = QTabWidget()
@@ -142,6 +144,20 @@ class MainWindow(QMainWindow):
     def is_image_file(self, file_path):
         image_extensions = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
         return file_path.lower().endswith(image_extensions)
+
+    def on_tree_context_menu(self, point):
+        index = self.tree_view.indexAt(point)
+        if not index.isValid():
+            return
+
+        file_path = self.model.filePath(index)
+
+        if os.path.isdir(file_path) and os.path.basename(file_path) == "spritesheets":
+            menu = QMenu(self)
+            new_spritesheet_action = QAction("New Spritesheet", self)
+            new_spritesheet_action.triggered.connect(lambda: create_new_spritesheet(self,self.current_project_path))
+            menu.addAction(new_spritesheet_action)
+            menu.exec(self.tree_view.viewport().mapToGlobal(point))
 
     def open_spritesheeteditor_tab(self, path):
         for i in range(self.tab_widget.count()):

@@ -2,9 +2,9 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from editorwidget import EditorWidget, GraphicsView
+from project import *
 import toml
 import os
-
 class AnimationState:
     def __init__(self, name, fps=12):
         self.name = name
@@ -48,6 +48,7 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.toml_path = toml_path
         self.project_path = project_path
         self.image_path = ""
+        self.spritesheet_type = "none" 
         self.modified = False
         self._zoom = 1.0
         self._dragging = False
@@ -159,6 +160,10 @@ class SpritesheetEditor(QWidget, EditorWidget):
         
         self.load_image_btn = QPushButton("Load Image")
         self.load_image_btn.clicked.connect(self.load_image)        
+
+        self.sprite_type_combo = QComboBox()
+        self.sprite_type_combo.addItems(SPRITESHEET_TYPES)
+        self.sprite_type_combo.currentTextChanged.connect(self.on_sprite_type_changed)
         
         self.tile_width_spin = QSpinBox()
         self.tile_width_spin.setRange(1, 1024)
@@ -179,6 +184,9 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         right_layout = QVBoxLayout()
         right_layout.addWidget(self.load_image_btn)
+        right_layout.addSpacing(10)
+        right_layout.addWidget(QLabel("Sprite Type:"))
+        right_layout.addWidget(self.sprite_type_combo)
         right_layout.addSpacing(10)
         right_layout.addWidget(QLabel("Sprite Width:"))
         right_layout.addWidget(self.tile_width_spin)
@@ -232,11 +240,20 @@ class SpritesheetEditor(QWidget, EditorWidget):
                 QMessageBox.warning(self, "Invalid Selection", "Please select an image from within the 'assets' directory.")
 
     def update_image_scene(self):
-        self.scene.removeItem(self.pixmap_item)
-        self.scene.removeItem(self.checker_item)
+        # Remove old items from scene safely
+        if self.pixmap_item:
+            self.scene.removeItem(self.pixmap_item)
+            self.pixmap_item = None
+        if self.checker_item:
+            self.scene.removeItem(self.checker_item)
+            self.checker_item = None
 
-        self.checker_item = QGraphicsPixmapItem(self.generate_checkerboard_pixmap(
-            self.pixmap.width(), self.pixmap.height()))
+        self.scene.clear()  # Clears all, including old selection rect
+
+        # Recreate checkerboard and pixmap
+        self.checker_item = QGraphicsPixmapItem(
+            self.generate_checkerboard_pixmap(self.pixmap.width(), self.pixmap.height())
+        )
         self.checker_item.setZValue(-2)
         self.scene.addItem(self.checker_item)
 
@@ -244,6 +261,29 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.FastTransformation)
         self.pixmap_item.setZValue(-1)
         self.scene.addItem(self.pixmap_item)
+
+        # Re-add selection rectangle on top
+        self.selection_rect = MovableRect()
+        self.selection_rect.setRect(0, 0, self.tile_width_spin.value(), self.tile_height_spin.value())
+        self.selection_rect.set_position_callback(self.on_rect_moved)
+        
+        # Restore style
+        self.selection_rect.setPen(QPen(QColor(0, 0, 255, 255), 0))
+        self.selection_rect.setBrush(QColor(0, 0, 255, 50))
+        self.selection_rect.setZValue(10)
+
+        # Restore callback
+        self.selection_rect.set_position_callback(self.on_rect_moved)
+        
+        self.scene.addItem(self.selection_rect)
+
+        # Reset zoom and center view
+        self._zoom = 1.0
+        self.view.resetTransform()
+        self.view.scale(self._zoom, self._zoom)
+        self.view.setSceneRect(self.scene.itemsBoundingRect())
+        self.view.centerOn(0, 0)
+
 
     def generate_checkerboard_pixmap(self, width, height, tile_size=8):
         if width <= 0 or height <= 0:
@@ -293,6 +333,57 @@ class SpritesheetEditor(QWidget, EditorWidget):
             anim.fps = fps
             self.modified = True
 
+    def on_sprite_type_changed(self, new_type):
+        if new_type == self.spritesheet_type:
+            return  # No change
+
+        reply = QMessageBox.question(
+            self,
+            "Change Sprite Type",
+            "Changing the sprite type will delete and recreate all default animations. Continue?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply != QMessageBox.Yes:
+            self.sprite_type_combo.blockSignals(True)
+            self.sprite_type_combo.setCurrentText(self.sprite_type)
+            self.sprite_type_combo.blockSignals(False)
+            return
+
+        # Remove all current default states
+        for state in DEFAULT_STATES[self.spritesheet_type]:
+            if state in self.anim_states:
+                self.anim_states.pop(state)
+
+                items = self.anim_list.findItems(state, Qt.MatchExactly)
+                for item in items:
+                    row = self.anim_list.row(item)
+                    self.anim_list.takeItem(row)
+
+        # Create new default states
+        self.spritesheet_type = new_type
+        self.create_default_states()
+
+        self.modified = True
+
+    def create_default_states(self):
+
+        self.default_states = DEFAULT_STATES[self.spritesheet_type]
+
+        for state in self.default_states:
+            anim = AnimationState(state)
+            self.anim_states[state] = anim
+
+            item = QListWidgetItem(state)
+            font = item.font()
+            font.setBold(True)
+            item.setFont(font)
+            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            self.anim_list.addItem(item)
+
+        if self.anim_list.count() > 0:
+            self.anim_list.setCurrentRow(0)
+
     def get_current_animation(self) -> AnimationState | None:
         item = self.anim_list.currentItem()
         if not item:
@@ -301,7 +392,13 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
     def add_animation_state(self):
         name, ok = QInputDialog.getText(self, "Add Animation", "Enter animation name:")
-        if ok and name and name not in self.anim_states:
+        if ok and name:
+            if name in self.anim_states:
+                QMessageBox.warning(self, "Duplicate", f"Animation '{name}' already exists.")
+                return
+            if name in DEFAULT_STATES[self.spritesheet_type]:
+                QMessageBox.warning(self, "Restricted", f"'{name}' is a default state and cannot be added.")
+                return
             anim = AnimationState(name)
             self.anim_states[name] = anim
             self.anim_list.addItem(name)
@@ -312,6 +409,9 @@ class SpritesheetEditor(QWidget, EditorWidget):
         row = self.anim_list.currentRow()
         if row >= 0:
             name = self.anim_list.item(row).text()
+            if name in DEFAULT_STATES[self.spritesheet_type]:
+                QMessageBox.warning(self, "Restricted", f"'{name}' is a default state and cannot be removed.")
+                return
             del self.anim_states[name]
             self.anim_list.takeItem(row)
             self.frames_list.clear()
@@ -322,6 +422,10 @@ class SpritesheetEditor(QWidget, EditorWidget):
         if not item:
             return
         old_name = item.text()
+        if old_name in DEFAULT_STATES[self.spritesheet_type]:
+            QMessageBox.warning(self, "Restricted", f"'{old_name}' is a default state and cannot be renamed.")
+            return
+
         new_name, ok = QInputDialog.getText(self, "Rename Animation", "Enter new name:", text=old_name)
         if ok and new_name and new_name != old_name:
             if new_name in self.anim_states:
@@ -404,6 +508,11 @@ class SpritesheetEditor(QWidget, EditorWidget):
             if not self.pixmap.isNull():
                 self.update_image_scene()
 
+        self.sprite_type = data.get("type", "none")
+        self.sprite_type_combo.blockSignals(True)
+        self.sprite_type_combo.setCurrentText(self.sprite_type)
+        self.sprite_type_combo.blockSignals(False)
+
         self.tile_width_spin.setValue(data.get("width", 16))
         self.tile_height_spin.setValue(data.get("height", 16))
         self.fps_spin.setValue(data.get("fps", 12))
@@ -414,14 +523,20 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         states = data.get("states", {})
         for name, state_data in states.items():
-            fps = state_data.get("fps", 12)  # default to 12 if not found
+            fps = state_data.get("fps", 12)
             anim = AnimationState(name, fps=fps)
             for frame in state_data.get("frames", []):
                 if isinstance(frame, list) and len(frame) == 2:
                     pos = QPointF(frame[0], frame[1])
                     anim.add_frame(pos)
             self.anim_states[name] = anim
-            self.anim_list.addItem(name)
+            item = QListWidgetItem(name)
+            if name in DEFAULT_STATES[self.sprite_type]:
+                font = item.font()
+                font.setBold(True)
+                item.setFont(font)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            self.anim_list.addItem(item)
 
         if self.anim_list.count() > 0:
             self.anim_list.setCurrentRow(0)
@@ -438,6 +553,7 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         data = {
             "image_path": rel_image_path,
+            "type": self.spritesheet_type,
             "fps": self.fps_spin.value(),
             "width": self.tile_width_spin.value(),
             "height": self.tile_height_spin.value(),
