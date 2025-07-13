@@ -162,7 +162,7 @@ class SpritesheetEditor(QWidget, EditorWidget):
         self.load_image_btn.clicked.connect(self.load_image)        
 
         self.sprite_type_combo = QComboBox()
-        self.sprite_type_combo.addItems(SPRITESHEET_TYPES)
+        self.sprite_type_combo.addItems(DEFAULT_STATES.keys())
         self.sprite_type_combo.currentTextChanged.connect(self.on_sprite_type_changed)
         
         self.tile_width_spin = QSpinBox()
@@ -222,6 +222,9 @@ class SpritesheetEditor(QWidget, EditorWidget):
 
         # --- Animation Frame Storage ---
         self.anim_frames = {}
+
+    def is_default_state(self, name: str) -> bool:
+        return name in DEFAULT_STATES.get(self.spritesheet_type, [])
 
     def load_image(self):
         dialog = QFileDialog(self, "Select Spritesheet Image", self.project_path + "/assets")
@@ -508,9 +511,10 @@ class SpritesheetEditor(QWidget, EditorWidget):
             if not self.pixmap.isNull():
                 self.update_image_scene()
 
-        self.sprite_type = data.get("type", "none")
+        self.spritesheet_type = data.get("type", "none")
+        self.default_states = DEFAULT_STATES.get(self.spritesheet_type, [])
         self.sprite_type_combo.blockSignals(True)
-        self.sprite_type_combo.setCurrentText(self.sprite_type)
+        self.sprite_type_combo.setCurrentText(self.spritesheet_type)
         self.sprite_type_combo.blockSignals(False)
 
         self.tile_width_spin.setValue(data.get("width", 16))
@@ -531,7 +535,7 @@ class SpritesheetEditor(QWidget, EditorWidget):
                     anim.add_frame(pos)
             self.anim_states[name] = anim
             item = QListWidgetItem(name)
-            if name in DEFAULT_STATES[self.sprite_type]:
+            if name in self.default_states:
                 font = item.font()
                 font.setBold(True)
                 item.setFont(font)

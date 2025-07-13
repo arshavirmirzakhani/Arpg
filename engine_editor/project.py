@@ -4,13 +4,20 @@ from PySide6.QtWidgets import *
 import os
 import toml
 
-SPRITESHEET_TYPES = ["none", "four direction", "eight direction"]
-
 DEFAULT_STATES = {
-    "eight direction": [],
-    "four direction": ["left_walk","right_walk","up_walk","down_walk","left_idle","right_idle","up_idle","down_idle"],
-    "none": ["default"]
+    "none": ["default"],
+    "four direction": [
+        "left_walk", "right_walk", "up_walk", "down_walk",
+        "left_idle", "right_idle", "up_idle", "down_idle"
+    ],
+    "eight direction": [
+        "left_walk", "right_walk", "up_walk", "down_walk",
+        "up_left_walk", "up_right_walk", "down_left_walk", "down_right_walk",
+        "left_idle", "right_idle", "up_idle", "down_idle",
+        "up_left_idle", "up_right_idle", "down_left_idle", "down_right_idle"
+    ]
 }
+
 
 class NewSpritesheetDialog(QDialog):
     def __init__(self, parent=None):
@@ -24,7 +31,7 @@ class NewSpritesheetDialog(QDialog):
         layout.addRow("Name:", self.name_input)
 
         self.sprite_type_input = QComboBox()
-        self.sprite_type_input.addItems(SPRITESHEET_TYPES)
+        self.sprite_type_input.addItems(DEFAULT_STATES.keys())
         layout.addRow("Sprite Type:", self.sprite_type_input)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)

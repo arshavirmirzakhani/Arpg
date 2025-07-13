@@ -27,9 +27,9 @@ class ProjectEditor(QWidget,EditorWidget):
         self.layout.addRow("Window Title:",self.window_title_input)
 
 
-        self.load_from_file()
+        self.load()
 
-    def load_from_file(self):
+    def load(self):
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 data = toml.load(f)
